@@ -398,6 +398,48 @@ FodyWeavers.xsd
 
 # VS Code files for those working on multiple tools
 .vscode/*
+
+# Additional Python project ignores
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Pytest cache
+.pytest_cache/
+
+# Mypy cache
+.mypy_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+.coverage.*
+
+# Jupyter
+.ipynb_checkpoints
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Local data cache (don't commit cached datasets)
+data/cache/
+
+# Ignore CSV inputs and PNG outputs and input/output folders
+*.csv
+*.png
+
+# Ignore simulator data input/output folders
+simulator/data/input/
+simulator/data/output/
+
+
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
