@@ -53,7 +53,11 @@ class Backtester:
             sharpe = (strategy_returns.mean() * TRADING_DAYS_PER_YEAR) / (ann_vol + 1e-12)
             running_max = equity.cummax()
             # Avoid division by zero in max drawdown calculation
-            running_max_safe = running_max.replace(0, 1e-12)
+            # If running_max is zero (equity never positive), set drawdown to 0
+            if (running_max == 0).any():
+                running_max_safe = running_max.replace(0, 1e-12)
+            else:
+                running_max_safe = running_max
             drawdown = (equity - running_max_safe) / running_max_safe
             max_drawdown = drawdown.min()
 

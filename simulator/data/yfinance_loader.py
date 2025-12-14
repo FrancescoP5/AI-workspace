@@ -41,7 +41,7 @@ def _looks_valid(df: pd.DataFrame) -> bool:
     return bool(close.notna().any())
 
 
-def _read_csv_with_header(cache_path: str, header):
+def _read_csv_with_header(cache_path: str, header: int | list[int]):
     """Helper to read CSV with given header parameter and handle exceptions."""
     try:
         return pd.read_csv(cache_path, header=header, index_col=0, parse_dates=True)
