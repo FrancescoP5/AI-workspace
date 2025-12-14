@@ -1,0 +1,6 @@
+name = "ai-workspace-simulator"
+main = "dist/index.js"
+compatibility_date = "2025-12-14"
+type = "javascript"
+# Optionally set your account_id for production deploys
+# account_id = "your-account-id"

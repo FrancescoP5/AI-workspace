@@ -1,0 +1,16 @@
+{
+  "name": "ai-workspace-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/worker.ts --bundle --platform=browser --target=es2020 --outfile=dist/index.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.2025.0",
+    "esbuild": "^0.18.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.54.0"
+  }
+}
