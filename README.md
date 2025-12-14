@@ -17,3 +17,23 @@ Files:
 - `simulator/strategy.py`: SMA crossover signals
 - `simulator/backtester.py`: simple backtester
 - `simulator/main.py`: example runner
+
+Cloudflare Workers
+------------------
+
+You can deploy a small HTTP endpoint of the SMA-crossover logic to Cloudflare Workers. I added a minimal Worker in `src/worker.ts` plus `wrangler.toml` and `package.json` scripts.
+
+Quick deploy (PowerShell):
+```powershell
+npm install
+npm run build
+wrangler login
+wrangler publish
+```
+
+Usage: POST JSON to the worker with `prices` (array), `short`, and `long`.
+
+Example request body:
+```json
+{ "prices": [100,101,102,...], "short": 5, "long": 20 }
+```
