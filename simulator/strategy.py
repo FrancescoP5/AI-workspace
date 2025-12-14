@@ -11,8 +11,12 @@ def sma_crossover_signals(df: pd.DataFrame, short: int = 20, long: int = 50) -> 
     close = data['Close']
     if isinstance(close, pd.DataFrame):
         close = close.squeeze()
-    data['sma_short'] = close.rolling(window=short, min_periods=1).mean()
-    data['sma_long'] = close.rolling(window=long, min_periods=1).mean()
+    data['sma_short'] = close.rolling(window=short, min_periods=short).mean()
+    data['sma_long'] = close.rolling(window=long, min_periods=long).mean()
     data['signal'] = 0
-    data.loc[data['sma_short'] > data['sma_long'], 'signal'] = 1
+    data.loc[
+        (data['sma_short'] > data['sma_long']) & 
+        (~data['sma_short'].isna()) & 
+        (~data['sma_long'].isna()), 'signal'
+    ] = 1
     return data
