@@ -2,7 +2,6 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
-import pytest
 
 from simulator.data.yfinance_loader import (
     _normalize_yfinance_columns,
@@ -153,9 +152,9 @@ def test_fetch_data_invalid_cache():
             # Expected to fail fetching invalid ticker
             pass
         
-        # Cache should have been deleted
-        # Note: This test is fragile as it depends on yfinance behavior
-        # In a real test suite, we'd mock yfinance.download
+        # Verify cache was deleted after detecting invalid data
+        # Note: This test depends on yfinance behavior. In production tests, we'd mock yfinance.download
+        assert not os.path.exists(cache_path), "Invalid cache file should have been deleted"
     finally:
         # Clean up
         if os.path.exists(cache_path):

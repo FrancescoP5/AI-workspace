@@ -53,8 +53,8 @@ def test_sma_crossover_nan_prices():
     assert (result['signal'].iloc[10:25] == 0).all()
 
 
-def test_sma_crossover_multiindex_columns():
-    # Test with MultiIndex columns (common from yfinance)
+def test_sma_crossover_after_flatten():
+    # Test with flattened columns (after MultiIndex normalization)
     dates = pd.date_range('2020-01-01', periods=100, freq='D')
     prices = 100.0 + np.arange(100, dtype=float)
     

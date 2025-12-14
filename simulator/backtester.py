@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 
+# Number of trading days per year for annualization calculations
+TRADING_DAYS_PER_YEAR = 252
+
 
 class Backtester:
     def __init__(self, initial_capital: float = 10000.0, price_col: str = 'Close', signal_col: str = 'signal'):
@@ -44,11 +47,14 @@ class Backtester:
             final_capital = float(equity.iloc[-1])
             total_return = final_capital / self.initial_capital - 1
             days = max(len(df), 1)
-            annualized_return = (1 + total_return) ** (252.0 / days) - 1 if days > 0 else 0.0
-            ann_vol = strategy_returns.std() * np.sqrt(252)
-            sharpe = (strategy_returns.mean() * 252) / (ann_vol + 1e-12)
+            annualized_return = (1 + total_return) ** (TRADING_DAYS_PER_YEAR / days) - 1 if days > 0 else 0.0
+            ann_vol = strategy_returns.std() * np.sqrt(TRADING_DAYS_PER_YEAR)
+            # Sharpe ratio calculation assumes zero risk-free rate
+            sharpe = (strategy_returns.mean() * TRADING_DAYS_PER_YEAR) / (ann_vol + 1e-12)
             running_max = equity.cummax()
-            drawdown = (equity - running_max) / running_max
+            # Avoid division by zero in max drawdown calculation
+            running_max_safe = running_max.replace(0, 1e-12)
+            drawdown = (equity - running_max_safe) / running_max_safe
             max_drawdown = drawdown.min()
 
         metrics = {
