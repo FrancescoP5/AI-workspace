@@ -1,6 +1,9 @@
+import logging
 import os
 import pandas as pd
 import yfinance as yf
+
+logger = logging.getLogger(__name__)
 
 
 _REQUIRED_COLS = ['Open', 'High', 'Low', 'Close']
@@ -67,8 +70,8 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
         # If cache is invalid, delete it and refetch.
         try:
             os.remove(cache_path)
-        except Exception:
-            pass
+        except OSError as e:
+            logger.warning(f"Failed to delete invalid cache file {cache_path}: {e}")
 
     df = yf.download(ticker, period=period, interval=interval, progress=False)
     if df is None or df.empty:
@@ -81,6 +84,6 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
     if cache_path:
         try:
             df.to_csv(cache_path)
-        except Exception:
-            pass
+        except OSError as e:
+            logger.warning(f"Failed to write cache file {cache_path}: {e}")
     return df
