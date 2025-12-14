@@ -70,7 +70,7 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
         # If cache is invalid, delete it and refetch.
         try:
             os.remove(cache_path)
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"Failed to delete invalid cache file {cache_path}: {e}")
 
     df = yf.download(ticker, period=period, interval=interval, progress=False)
@@ -84,6 +84,6 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
     if cache_path:
         try:
             df.to_csv(cache_path)
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"Failed to write cache file {cache_path}: {e}")
     return df
