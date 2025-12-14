@@ -17,7 +17,16 @@ def run_example(ticker='AAPL'):
     cache_file = data_dir / f"{ticker}.csv"
 
     print(f"Fetching data for {ticker}...")
-    df = fetch_data(ticker, period='2y', interval='1d', cache_path=str(cache_file))
+    try:
+        df = fetch_data(ticker, period='2y', interval='1d', cache_path=str(cache_file))
+    except ValueError as ve:
+        print(f"Error: No data returned for ticker '{ticker}'. Please check the ticker symbol and try again.")
+        print(f"Details: {ve}")
+        return
+    except Exception as e:
+        print(f"Error fetching data for ticker '{ticker}': {e}")
+        print("Please check your network connection and the ticker symbol, then try again.")
+        return
 
     print("Generating signals (SMA crossover)...")
     signals = sma_crossover_signals(df, short=20, long=50)
