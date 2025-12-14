@@ -149,7 +149,7 @@ def test_fetch_data_invalid_cache():
         
         try:
             fetch_data('INVALID_TICKER', cache_path=cache_path)
-        except (ValueError, Exception):
+        except Exception:
             # Expected to fail fetching invalid ticker
             pass
         
