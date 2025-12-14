@@ -1,4 +1,4 @@
-name = "ai-workspace-simulator"
+name = "ai-workspace"
 main = "dist/index.js"
 compatibility_date = "2025-12-14"
 type = "javascript"
