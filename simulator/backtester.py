@@ -33,19 +33,27 @@ class Backtester:
         equity = (1 + strategy_returns).cumprod() * self.initial_capital
 
         # metrics
-        total_return = equity.iloc[-1] / self.initial_capital - 1
-        days = max(len(df), 1)
-        annualized_return = (1 + total_return) ** (252.0 / days) - 1 if days > 0 else 0.0
-        ann_vol = strategy_returns.std() * np.sqrt(252)
-        sharpe = (strategy_returns.mean() * 252) / (ann_vol + 1e-12)
-
-        running_max = equity.cummax()
-        drawdown = (equity - running_max) / running_max
-        max_drawdown = drawdown.min()
+        if equity.empty:
+            final_capital = self.initial_capital
+            total_return = 0.0
+            annualized_return = 0.0
+            ann_vol = 0.0
+            sharpe = 0.0
+            max_drawdown = 0.0
+        else:
+            final_capital = float(equity.iloc[-1])
+            total_return = final_capital / self.initial_capital - 1
+            days = max(len(df), 1)
+            annualized_return = (1 + total_return) ** (252.0 / days) - 1 if days > 0 else 0.0
+            ann_vol = strategy_returns.std() * np.sqrt(252)
+            sharpe = (strategy_returns.mean() * 252) / (ann_vol + 1e-12)
+            running_max = equity.cummax()
+            drawdown = (equity - running_max) / running_max
+            max_drawdown = drawdown.min()
 
         metrics = {
             'initial_capital': self.initial_capital,
-            'final_capital': float(equity.iloc[-1]),
+            'final_capital': float(final_capital),
             'total_return': float(total_return),
             'annualized_return': float(annualized_return),
             'annualized_vol': float(ann_vol),

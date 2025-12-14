@@ -50,13 +50,21 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
         # Cache may come from older runs with MultiIndex headers; try both formats.
         try:
             df = pd.read_csv(cache_path, index_col=0, parse_dates=True)
-        except Exception:
+        except (pd.errors.ParserError, ValueError, KeyError) as e:
+            logger.debug(f"Failed to read cache with single header: {e}")
+            df = None
+        except Exception as e:
+            logger.warning(f"Unexpected error reading cache file {cache_path}: {e}")
             df = None
 
         if df is None or (isinstance(df, pd.DataFrame) and 'Close' not in df.columns):
             try:
                 df = pd.read_csv(cache_path, header=[0, 1], index_col=0, parse_dates=True)
-            except Exception:
+            except (pd.errors.ParserError, ValueError, KeyError) as e:
+                logger.debug(f"Failed to read cache with MultiIndex header: {e}")
+                df = None
+            except Exception as e:
+                logger.warning(f"Unexpected error reading cache file with MultiIndex: {e}")
                 df = None
 
         if isinstance(df, pd.DataFrame):
