@@ -133,7 +133,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=df['sma_short'],
             name=f"SMA {cfg.short}",
             mode="lines",
-            line=dict(width=1.5, color=COLOR_SMA_SHORT),
+            line={"width": 1.5, "color": COLOR_SMA_SHORT},
         )
     )
     fig.add_trace(
@@ -142,7 +142,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=df['sma_long'],
             name=f"SMA {cfg.long}",
             mode="lines",
-            line=dict(width=1.5, color=COLOR_SMA_LONG),
+            line={"width": 1.5, "color": COLOR_SMA_LONG},
         )
     )
 
@@ -155,7 +155,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=entries['Close'],
             mode="markers",
             name="Buy signal",
-            marker=dict(color=COLOR_BUY_SIGNAL, size=8, symbol="triangle-up"),
+            marker={"color": COLOR_BUY_SIGNAL, "size": 8, "symbol": "triangle-up"},
             hovertemplate="Buy: %{y:.2f}<extra></extra>",
         )
     )
@@ -165,7 +165,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=exits['Close'],
             mode="markers",
             name="Sell signal",
-            marker=dict(color=COLOR_SELL_SIGNAL, size=8, symbol="triangle-down"),
+            marker={"color": COLOR_SELL_SIGNAL, "size": 8, "symbol": "triangle-down"},
             hovertemplate="Sell: %{y:.2f}<extra></extra>",
         )
     )
@@ -251,7 +251,7 @@ def parse_args() -> VisualizationConfig:
         if not parent_dir.exists():
             try:
                 parent_dir.mkdir(parents=True, exist_ok=True)
-            except (OSError, PermissionError) as exc:
+            except (OSError) as exc:
                 raise ValueError(
                     f"Cannot create output directory '{parent_dir}': {exc}"
                 ) from exc
