@@ -93,7 +93,8 @@ def load_price_data(cfg: VisualizationConfig) -> pd.DataFrame:
     cache_path: str | None = None
     if cfg.cache_dir is not None:
         cfg.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = str(cfg.cache_dir / f"{cfg.ticker}.csv")
+        # build cache path and normalize to POSIX so tests are stable across OS
+        cache_path = (cfg.cache_dir / f"{cfg.ticker}.csv").as_posix()
 
     df = fetch_data(
         cfg.ticker,

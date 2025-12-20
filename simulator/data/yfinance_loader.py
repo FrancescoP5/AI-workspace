@@ -80,7 +80,7 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
         except OSError as e:
             logger.warning(f"Failed to delete invalid cache file {cache_path}: {e}")
 
-    df = yf.download(ticker, period=period, interval=interval, progress=False)
+    df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
     if df is None or df.empty:
         raise ValueError(f"No data returned for {ticker}")
 
