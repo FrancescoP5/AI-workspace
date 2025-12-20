@@ -56,7 +56,7 @@ def test_build_interactive_figure_has_expected_traces():
     cfg = VisualizationConfig(ticker="TEST", short=3, long=5)
 
     fig = build_interactive_figure(df, cfg)
-    trace_names = [trace.name for trace in fig.data]
+    trace_names = [trace.name for trace in fig.data]  # type: ignore[attr-defined]
 
     assert "TEST OHLC" in trace_names
     assert "SMA 3" in trace_names
