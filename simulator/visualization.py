@@ -175,20 +175,20 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
         title=f"{cfg.ticker} SMA {cfg.short}/{cfg.long} crossover",
         yaxis_title="Price",
         xaxis_title="Date",
-        xaxis=dict(
-            rangeslider=dict(visible=True),
-            rangeselector=dict(
-                buttons=[
-                    dict(count=1, label="1m", step="month", stepmode="backward"),
-                    dict(count=3, label="3m", step="month", stepmode="backward"),
-                    dict(count=6, label="6m", step="month", stepmode="backward"),
-                    dict(count=1, label="YTD", step="year", stepmode="todate"),
-                    dict(count=1, label="1y", step="year", stepmode="backward"),
-                    dict(step="all"),
+        xaxis={
+            "rangeslider":{"visible": True},
+            "rangeselector": {
+                "buttons": [
+                    {"count": 1, "label": "1m", "step": "month", "stepmode": "backward"},
+                    {"count": 3, "label": "3m", "step": "month", "stepmode": "backward"},
+                    {"count": 6, "label": "6m", "step": "month", "stepmode": "backward"},
+                    {"count": 1, "label": "YTD", "step": "year", "stepmode": "todate"},
+                    {"count": 1, "label": "1y", "step": "year", "stepmode": "backward"},
+                    {"step": "all"},
                 ]
-            ),
-        ),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            },
+        },
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
         template="plotly_white",
     )
     return fig
