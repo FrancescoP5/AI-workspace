@@ -17,6 +17,18 @@ Files:
 - `simulator/strategy.py`: SMA crossover signals
 - `simulator/backtester.py`: simple backtester
 - `simulator/main.py`: example runner
+- `simulator/visualization.py`: interactive SMA visualization (plotly HTML)
+
+Interactive visualization
+-------------------------
+
+Generate an interactive SMA crossover chart with zoom/pan, range selector, ticker choice, and buy/sell markers:
+
+```powershell
+python -m simulator.visualization --ticker AAPL --period 1y --interval 1d --short 20 --long 50 --start 2024-01-01 --end 2024-12-01
+```
+
+Output: `simulator/data/output/<ticker>_interactive.html` (override with `--output`).
 
 Cloudflare Workers
 ------------------
