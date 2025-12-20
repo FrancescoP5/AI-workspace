@@ -23,6 +23,12 @@ from simulator.strategy import sma_crossover_signals
 DEFAULT_CACHE_DIR = Path(__file__).parent / "data" / "cache"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "data" / "output"
 
+# Chart color constants
+COLOR_SMA_SHORT = "#1f77b4"
+COLOR_SMA_LONG = "#ff7f0e"
+COLOR_BUY_SIGNAL = "#2ca02c"
+COLOR_SELL_SIGNAL = "#d62728"
+
 
 @dataclass
 class VisualizationConfig:
@@ -36,15 +42,50 @@ class VisualizationConfig:
     cache_dir: Path | None = DEFAULT_CACHE_DIR
     output_html: Path | None = None
 
+    def __post_init__(self):
+        """Validate SMA window parameters."""
+        if self.short <= 0:
+            raise ValueError(f"short SMA window must be positive, got {self.short}")
+        if self.long <= 0:
+            raise ValueError(f"long SMA window must be positive, got {self.long}")
+        if self.short >= self.long:
+            raise ValueError(
+                f"short SMA window ({self.short}) must be less than long SMA window ({self.long})"
+            )
+
 
 def filter_date_range(df: pd.DataFrame, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
     """Filter dataframe by start/end ISO date strings if provided."""
     data = df.copy()
-    data.index = pd.to_datetime(data.index)
+    try:
+        data.index = pd.to_datetime(data.index)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Failed to convert dataframe index to datetime.") from exc
+
+    start_ts = None
+    end_ts = None
+
     if start:
-        data = data.loc[data.index >= pd.to_datetime(start)]
+        try:
+            start_ts = pd.to_datetime(start)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid start date '{start}'. Please use an ISO date format such as 'YYYY-MM-DD'."
+            ) from exc
+
     if end:
-        data = data.loc[data.index <= pd.to_datetime(end)]
+        try:
+            end_ts = pd.to_datetime(end)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid end date '{end}'. Please use an ISO date format such as 'YYYY-MM-DD'."
+            ) from exc
+
+    if start_ts is not None:
+        data = data.loc[data.index >= start_ts]
+    if end_ts is not None:
+        data = data.loc[data.index <= end_ts]
+
     return data
 
 
@@ -92,7 +133,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=df['sma_short'],
             name=f"SMA {cfg.short}",
             mode="lines",
-            line=dict(width=1.5, color="#1f77b4"),
+            line=dict(width=1.5, color=COLOR_SMA_SHORT),
         )
     )
     fig.add_trace(
@@ -101,7 +142,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=df['sma_long'],
             name=f"SMA {cfg.long}",
             mode="lines",
-            line=dict(width=1.5, color="#ff7f0e"),
+            line=dict(width=1.5, color=COLOR_SMA_LONG),
         )
     )
 
@@ -114,7 +155,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=entries['Close'],
             mode="markers",
             name="Buy signal",
-            marker=dict(color="#2ca02c", size=8, symbol="triangle-up"),
+            marker=dict(color=COLOR_BUY_SIGNAL, size=8, symbol="triangle-up"),
             hovertemplate="Buy: %{y:.2f}<extra></extra>",
         )
     )
@@ -124,7 +165,7 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             y=exits['Close'],
             mode="markers",
             name="Sell signal",
-            marker=dict(color="#d62728", size=8, symbol="triangle-down"),
+            marker=dict(color=COLOR_SELL_SIGNAL, size=8, symbol="triangle-down"),
             hovertemplate="Sell: %{y:.2f}<extra></extra>",
         )
     )
@@ -154,6 +195,18 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
 
 def render_visualization(cfg: VisualizationConfig) -> Path:
     df = load_price_data(cfg)
+
+    # Ensure we have enough data to compute the long SMA and build a meaningful chart
+    if df.empty or len(df) <= cfg.long:
+        date_range_desc = ""
+        if cfg.start or cfg.end:
+            date_range_desc = f" for date range {cfg.start or '…'} to {cfg.end or '…'}"
+        raise ValueError(
+            f"Insufficient data loaded for ticker {cfg.ticker}{date_range_desc}: "
+            f"expected more than {cfg.long} data points to compute the long SMA, "
+            f"but got {len(df)}."
+        )
+
     df = add_visualization_columns(df, short=cfg.short, long=cfg.long)
 
     output_path = cfg.output_html
@@ -190,6 +243,23 @@ def parse_args() -> VisualizationConfig:
     )
     args = parser.parse_args()
 
+    # Validate output path if provided
+    output_path = None
+    if args.output_html:
+        output_path = Path(args.output_html)
+        parent_dir = output_path.parent
+        if not parent_dir.exists():
+            try:
+                parent_dir.mkdir(parents=True, exist_ok=True)
+            except (OSError, PermissionError) as exc:
+                raise ValueError(
+                    f"Cannot create output directory '{parent_dir}': {exc}"
+                ) from exc
+        elif not parent_dir.is_dir():
+            raise ValueError(
+                f"Output path parent '{parent_dir}' exists but is not a directory"
+            )
+
     return VisualizationConfig(
         ticker=args.ticker,
         period=args.period,
@@ -199,7 +269,7 @@ def parse_args() -> VisualizationConfig:
         short=args.short,
         long=args.long,
         cache_dir=Path(args.cache_dir) if args.cache_dir else None,
-        output_html=Path(args.output_html) if args.output_html else None,
+        output_html=output_path,
     )
 
 
