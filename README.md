@@ -30,6 +30,17 @@ python -m simulator.visualization --ticker AAPL --period 1y --interval 1d --shor
 
 Output: `simulator/data/output/<ticker>_interactive.html` (override with `--output`).
 
+Live auto-refresh mode
+----------------------
+
+Serve a Plotly chart that auto-refreshes every 30s, 1m, or 5m via a small Flask app:
+
+```powershell
+python -m simulator.visualization --ticker AAPL --period 1y --interval 1d --short 20 --long 50 --live --port 8000 --refresh 60
+```
+
+Then open http://localhost:8000 to view the chart. Use the dropdown to change the refresh interval and the button to start/stop live polling. The page shows the last refresh time, data timestamp, and whether cached data was used. The backend respects a minimum 30s fetch interval to avoid yfinance rate limits.
+
 Cloudflare Workers
 ------------------
 

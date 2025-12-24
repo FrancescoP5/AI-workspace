@@ -22,6 +22,8 @@ from simulator.strategy import sma_crossover_signals
 
 DEFAULT_CACHE_DIR = Path(__file__).parent / "data" / "cache"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "data" / "output"
+LIVE_REFRESH_INTERVALS = (30, 60, 300)
+DEFAULT_REFRESH_SECONDS = 60
 
 # Chart color constants
 COLOR_SMA_SHORT = "#1f77b4"
@@ -41,6 +43,9 @@ class VisualizationConfig:
     long: int = 50
     cache_dir: Path | None = DEFAULT_CACHE_DIR
     output_html: Path | None = None
+    live: bool = False
+    port: int = 8000
+    refresh_seconds: int = DEFAULT_REFRESH_SECONDS
 
     def __post_init__(self):
         """Validate SMA window parameters."""
@@ -51,6 +56,12 @@ class VisualizationConfig:
         if self.short >= self.long:
             raise ValueError(
                 f"short SMA window ({self.short}) must be less than long SMA window ({self.long})"
+            )
+        if self.port <= 0:
+            raise ValueError(f"port must be a positive integer, got {self.port}")
+        if self.refresh_seconds not in LIVE_REFRESH_INTERVALS:
+            raise ValueError(
+                f"refresh_seconds must be one of {LIVE_REFRESH_INTERVALS}, got {self.refresh_seconds}"
             )
 
 
@@ -242,6 +253,25 @@ def parse_args() -> VisualizationConfig:
         default=str(DEFAULT_CACHE_DIR),
         help="Directory for cached CSV files",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Enable live auto-refresh mode with a local server",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for live auto-refresh server (only used with --live)",
+    )
+    parser.add_argument(
+        "--refresh",
+        type=int,
+        dest="refresh_seconds",
+        default=DEFAULT_REFRESH_SECONDS,
+        choices=list(LIVE_REFRESH_INTERVALS),
+        help="Auto-refresh interval in seconds for live mode",
+    )
     args = parser.parse_args()
 
     # Validate output path if provided
@@ -271,11 +301,19 @@ def parse_args() -> VisualizationConfig:
         long=args.long,
         cache_dir=Path(args.cache_dir) if args.cache_dir else None,
         output_html=output_path,
+        live=bool(args.live),
+        port=args.port,
+        refresh_seconds=args.refresh_seconds,
     )
 
 
 def main():
     cfg = parse_args()
+    if cfg.live:
+        from simulator.live_visualization import run_live_server
+
+        run_live_server(cfg)
+        return
     output_path = render_visualization(cfg)
     print(f"Saved interactive chart to {output_path}")
 
