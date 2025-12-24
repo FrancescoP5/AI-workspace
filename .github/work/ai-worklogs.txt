@@ -120,3 +120,17 @@
   "files_touched": ["simulator/live_visualization.py", "simulator/visualization.py", "tests/test_live_visualization.py", "requirements.txt", "README.md"],
   "technical_summary": "Built live auto-refresh server (Flask) that serves Plotly charts with start/stop control, interval selector (30s/1m/5m), last refresh and cache indicators, and rate-limited polling API. Added --live/--port/--refresh CLI flags, documented usage, and added tests for caching behavior, error handling, and HTML controls. All tests pass (34).",
   "message_to_orchestrator": "Live update feature implemented and tested; ready for review."}
+>>> LOG ENTRY | agent-08 | 2025-12-24 12:30
+{
+  "status": "SUCCESS",
+  "current_focus": "Fixed stale cache and candlestick rendering bugs in live visualization",
+  "task_tracker": [
+    { "task": "Task 1: Fix stale cache data bug in yfinance_loader.py", "state": "[X] DONE" },
+    { "task": "Task 2: Fix candlestick chart not rendering in live visualization", "state": "[X] DONE" },
+    { "task": "Task 3: Add live data bypass for cache in live mode", "state": "[X] DONE" },
+    { "task": "Task 4: Add visual feedback for data freshness", "state": "[X] DONE" },
+    { "task": "Task 5: Add unit tests for cache invalidation logic", "state": "[X] DONE" }
+  ],
+  "files_touched": ["simulator/data/yfinance_loader.py", "simulator/visualization.py", "simulator/live_visualization.py", "tests/test_yfinance_loader.py", "tests/test_visualization.py", "tests/test_live_visualization.py"],
+  "technical_summary": "Fixed two critical bugs: (1) Added _is_cache_stale() function to detect stale cached data based on trading days, with force_refresh and max_cache_age_days parameters. (2) Fixed candlestick rendering by disabling rangeslider.visible which was overlapping/hiding the chart, added explicit colors, and ensured proper trace ordering. Also added force_refresh_data option for live mode (defaults to True), warning banner for stale data (>24h), and 7 new unit tests for cache invalidation and candlestick rendering. All 41 tests pass.",
+  "message_to_orchestrator": "All 5 bugfix tasks completed successfully. Branch fix/live-visualization-bugs pushed to origin. Ready for PR review and merge into feat/live-stock-updates."}
