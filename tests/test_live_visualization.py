@@ -20,15 +20,18 @@ def _sample_prices():
 
 
 def test_live_app_serves_cached_figure_twice():
+    """Test that the live app caches the figure (not data) to avoid hitting API too frequently."""
     cfg = VisualizationConfig(ticker="TEST", short=3, long=5)
 
     call_count = {"count": 0}
 
-    def loader(_cfg):
+    def loader(_cfg, _force_refresh=False):
         call_count["count"] += 1
         return _sample_prices()
 
-    app = create_live_app(cfg, data_loader=loader, min_refresh_seconds=30)
+    # For this test, we use force_refresh_data=False to test figure caching behavior
+    # In production live mode, force_refresh_data=True is the default to ensure fresh data
+    app = create_live_app(cfg, data_loader=loader, min_refresh_seconds=30, force_refresh_data=False)
     client = app.test_client()
 
     first = client.get("/api/figure")
@@ -46,7 +49,7 @@ def test_live_app_serves_cached_figure_twice():
 def test_live_app_returns_error_when_loader_fails_without_cache():
     cfg = VisualizationConfig(ticker="FAIL", short=3, long=5)
 
-    def loader(_cfg):  # pragma: no cover - error path
+    def loader(_cfg, _force_refresh=False):  # pragma: no cover - error path
         raise ValueError("network down")
 
     app = create_live_app(cfg, data_loader=loader, min_refresh_seconds=30)
@@ -61,7 +64,7 @@ def test_live_app_returns_error_when_loader_fails_without_cache():
 
 def test_index_returns_html_with_controls():
     cfg = VisualizationConfig(ticker="HTML", short=3, long=5)
-    app = create_live_app(cfg, data_loader=lambda _cfg: _sample_prices())
+    app = create_live_app(cfg, data_loader=lambda _cfg, _force=False: _sample_prices())
     client = app.test_client()
 
     resp = client.get("/")

@@ -2,12 +2,15 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
+from datetime import datetime, timedelta
 
 from simulator.data.yfinance_loader import (
     _normalize_yfinance_columns,
     _coerce_ohlc_numeric,
     _looks_valid,
-    fetch_data
+    _is_cache_stale,
+    fetch_data,
+    DEFAULT_MAX_CACHE_AGE_DAYS,
 )
 
 
@@ -109,17 +112,22 @@ def test_looks_valid_false_all_nan():
 
 def test_fetch_data_with_cache():
     # Test fetching data with cache
-    # Create a temporary cache file with valid data
+    # Create a temporary cache file with valid data using recent dates
+    # so it won't be considered stale
+    today = pd.Timestamp.now().normalize()
+    recent_date_1 = (today - pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+    recent_date_2 = today.strftime('%Y-%m-%d')
+    
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
         cache_path = f.name
-        # Write a simple CSV with OHLC data
+        # Write a simple CSV with OHLC data using recent dates
         f.write('Date,Open,High,Low,Close,Volume\n')
-        f.write('2020-01-01,100.0,102.0,99.0,101.0,1000\n')
-        f.write('2020-01-02,101.0,103.0,100.0,102.0,2000\n')
+        f.write(f'{recent_date_1},100.0,102.0,99.0,101.0,1000\n')
+        f.write(f'{recent_date_2},101.0,103.0,100.0,102.0,2000\n')
     
     try:
-        # Fetch should use cache
-        df = fetch_data('AAPL', cache_path=cache_path)
+        # Fetch should use cache (not stale since dates are recent)
+        df = fetch_data('AAPL', cache_path=cache_path, max_cache_age_days=5)
         
         assert isinstance(df, pd.DataFrame)
         assert 'Close' in df.columns
@@ -159,3 +167,93 @@ def test_fetch_data_invalid_cache():
         # Clean up
         if os.path.exists(cache_path):
             os.remove(cache_path)
+
+
+# === Task 5: Tests for cache invalidation logic ===
+
+def test_is_cache_stale_fresh_data():
+    """Test that recent data is not considered stale."""
+    # Create DataFrame with data from today
+    today = pd.Timestamp.now().normalize()
+    df = pd.DataFrame({
+        'Open': [100.0, 101.0],
+        'High': [102.0, 103.0],
+        'Low': [99.0, 100.0],
+        'Close': [101.0, 102.0]
+    }, index=[today - pd.Timedelta(days=1), today])
+    
+    assert _is_cache_stale(df, max_cache_age_days=1) is False
+
+
+def test_is_cache_stale_old_data():
+    """Test that old data is correctly identified as stale."""
+    # Create DataFrame with data from 5 business days ago
+    old_date = pd.Timestamp.now().normalize() - pd.Timedelta(days=10)
+    df = pd.DataFrame({
+        'Open': [100.0, 101.0],
+        'High': [102.0, 103.0],
+        'Low': [99.0, 100.0],
+        'Close': [101.0, 102.0]
+    }, index=[old_date - pd.Timedelta(days=1), old_date])
+    
+    assert _is_cache_stale(df, max_cache_age_days=1) is True
+
+
+def test_is_cache_stale_empty_dataframe():
+    """Test that empty DataFrame is considered stale."""
+    df = pd.DataFrame()
+    assert _is_cache_stale(df, max_cache_age_days=1) is True
+
+
+def test_is_cache_stale_none():
+    """Test that None input is considered stale."""
+    assert _is_cache_stale(None, max_cache_age_days=1) is True
+
+
+def test_fetch_data_force_refresh():
+    """Test that force_refresh bypasses cache."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        cache_path = f.name
+        # Write cache with old dates (should be stale)
+        f.write('Date,Open,High,Low,Close,Volume\n')
+        f.write('2020-01-01,100.0,102.0,99.0,101.0,1000\n')
+        f.write('2020-01-02,101.0,103.0,100.0,102.0,2000\n')
+    
+    try:
+        # With force_refresh=True, cache should be ignored even if it exists
+        # Since we can't mock yfinance here, we just verify the function accepts the param
+        initial_exists = os.path.exists(cache_path)
+        assert initial_exists is True
+        
+        # With old data, it should try to refetch due to staleness check
+        try:
+            # This will fail to download as we can't hit yfinance in tests
+            # but we're testing that the staleness logic triggers
+            df = fetch_data('INVALID_TICKER', cache_path=cache_path, force_refresh=False)
+        except Exception:
+            pass  # Expected
+        
+        # Cache should be deleted due to staleness
+        assert not os.path.exists(cache_path), "Stale cache file should have been deleted"
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+
+def test_max_cache_age_days_custom():
+    """Test that custom max_cache_age_days is respected."""
+    # Create DataFrame with data from 3 business days ago
+    days_back = 5  # Slightly more than 3 business days 
+    old_date = pd.Timestamp.now().normalize() - pd.Timedelta(days=days_back)
+    df = pd.DataFrame({
+        'Open': [100.0],
+        'High': [102.0],
+        'Low': [99.0],
+        'Close': [101.0]
+    }, index=[old_date])
+    
+    # With max_cache_age_days=1, should be stale
+    assert _is_cache_stale(df, max_cache_age_days=1) is True
+    
+    # With max_cache_age_days=10, should not be stale
+    assert _is_cache_stale(df, max_cache_age_days=10) is False

@@ -100,7 +100,16 @@ def filter_date_range(df: pd.DataFrame, start: Optional[str] = None, end: Option
     return data
 
 
-def load_price_data(cfg: VisualizationConfig) -> pd.DataFrame:
+def load_price_data(cfg: VisualizationConfig, force_refresh: bool = False) -> pd.DataFrame:
+    """Load price data with optional cache bypass for live mode.
+    
+    Args:
+        cfg: Visualization configuration
+        force_refresh: If True, bypass cache and fetch fresh data
+        
+    Returns:
+        DataFrame with OHLCV price data
+    """
     cache_path: str | None = None
     if cfg.cache_dir is not None:
         cfg.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -112,6 +121,7 @@ def load_price_data(cfg: VisualizationConfig) -> pd.DataFrame:
         period=cfg.period,
         interval=cfg.interval,
         cache_path=cache_path,
+        force_refresh=force_refresh,
     )
     df.index = pd.to_datetime(df.index)
     return filter_date_range(df, start=cfg.start, end=cfg.end)
@@ -128,6 +138,7 @@ def add_visualization_columns(df: pd.DataFrame, short: int, long: int) -> pd.Dat
 def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.Figure:
     fig = go.Figure()
 
+    # Add candlestick trace first for proper layering
     fig.add_trace(
         go.Candlestick(
             x=df.index,
@@ -136,6 +147,8 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
             low=df['Low'],
             close=df['Close'],
             name=f"{cfg.ticker} OHLC",
+            increasing_line_color='#26a69a',
+            decreasing_line_color='#ef5350',
         )
     )
 
@@ -187,7 +200,8 @@ def build_interactive_figure(df: pd.DataFrame, cfg: VisualizationConfig) -> go.F
         yaxis_title="Price",
         xaxis_title="Date",
         xaxis={
-            "rangeslider":{"visible": True},
+            # Disable rangeslider - it overlaps/hides the candlestick chart
+            "rangeslider": {"visible": False},
             "rangeselector": {
                 "buttons": [
                     {"count": 1, "label": "1m", "step": "month", "stepmode": "backward"},

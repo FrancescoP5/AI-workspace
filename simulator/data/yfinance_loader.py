@@ -1,9 +1,14 @@
 import logging
 import os
+from datetime import datetime, timedelta
+
 import pandas as pd
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
+
+# Default maximum age for cached data (in trading days)
+DEFAULT_MAX_CACHE_AGE_DAYS = 1
 
 
 _REQUIRED_COLS = ['Open', 'High', 'Low', 'Close']
@@ -54,12 +59,54 @@ def _read_csv_with_header(cache_path: str, header: int | list[int]):
         return None
 
 
-def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
+def _is_cache_stale(df: pd.DataFrame, max_cache_age_days: int) -> bool:
+    """Check if cached data is stale based on the latest date in the dataframe.
+    
+    Data is considered stale if the most recent data point is older than
+    max_cache_age_days trading days from today.
+    """
+    if df is None or df.empty:
+        return True
+    
+    try:
+        latest_date = pd.to_datetime(df.index.max())
+        today = pd.Timestamp.now().normalize()
+        
+        # Calculate business days between latest data and today
+        # Use pandas bdate_range to count trading days
+        business_days = len(pd.bdate_range(latest_date, today)) - 1
+        
+        if business_days > max_cache_age_days:
+            logger.info(
+                f"Cache is stale: latest data is {latest_date.date()}, "
+                f"{business_days} trading days old (threshold: {max_cache_age_days})"
+            )
+            return True
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking cache staleness: {e}")
+        return True  # Assume stale if we can't determine
+
+
+def fetch_data(ticker, period='2y', interval='1d', cache_path=None, 
+               force_refresh=False, max_cache_age_days=DEFAULT_MAX_CACHE_AGE_DAYS):
     """Fetch OHLCV data for `ticker` using yfinance. Optionally cache to CSV.
 
-    Returns a DataFrame indexed by DatetimeIndex with columns: Open, High, Low, Close, Adj Close, Volume
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL')
+        period: yfinance period string (e.g., '2y', '1y', '6mo')
+        interval: yfinance interval string (e.g., '1d', '1h')
+        cache_path: Optional path to cache CSV file
+        force_refresh: If True, bypass cache and always fetch fresh data
+        max_cache_age_days: Maximum age of cached data in trading days before 
+                           it's considered stale (default: 1)
+
+    Returns:
+        DataFrame indexed by DatetimeIndex with columns: Open, High, Low, Close, Adj Close, Volume
     """
-    if cache_path and os.path.exists(cache_path):
+    should_use_cache = cache_path and os.path.exists(cache_path) and not force_refresh
+    
+    if should_use_cache:
         # Cache may come from older runs with MultiIndex headers; try both formats.
         df = _read_csv_with_header(cache_path, header=0)
 
@@ -71,12 +118,18 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None):
             df = _coerce_ohlc_numeric(df)
             df.index = pd.to_datetime(df.index, errors='coerce')
 
+        # Check both validity AND freshness of cache
         if df is not None and _looks_valid(df):
-            return df
+            if not _is_cache_stale(df, max_cache_age_days):
+                logger.debug(f"Using fresh cached data for {ticker}")
+                return df
+            else:
+                logger.info(f"Cached data for {ticker} is stale, will refetch")
 
-        # If cache is invalid, delete it and refetch.
+        # If cache is invalid or stale, delete it and refetch.
         try:
             os.remove(cache_path)
+            logger.info(f"Deleted stale/invalid cache file: {cache_path}")
         except OSError as e:
             logger.warning(f"Failed to delete invalid cache file {cache_path}: {e}")
 

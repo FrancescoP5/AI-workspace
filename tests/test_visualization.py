@@ -63,7 +63,31 @@ def test_build_interactive_figure_has_expected_traces():
     assert "SMA 5" in trace_names
     assert "Buy signal" in trace_names
     assert "Sell signal" in trace_names
-    assert fig.layout.xaxis.rangeslider.visible is True
+    # rangeslider is disabled to prevent it from hiding candlesticks
+    assert fig.layout.xaxis.rangeslider.visible is False
+
+
+def test_candlestick_trace_is_first_and_has_data():
+    """Test that candlestick trace is properly rendered (Task 5: regression test)."""
+    df = add_visualization_columns(_sample_prices(), short=3, long=5)
+    cfg = VisualizationConfig(ticker="TEST", short=3, long=5)
+
+    fig = build_interactive_figure(df, cfg)
+    
+    # Find the candlestick trace
+    candlestick_traces = [t for t in fig.data if t.name == "TEST OHLC"]
+    assert len(candlestick_traces) == 1, "Should have exactly one candlestick trace"
+    
+    candlestick = candlestick_traces[0]
+    
+    # Verify candlestick has proper OHLC data
+    assert candlestick.open is not None and len(candlestick.open) > 0
+    assert candlestick.high is not None and len(candlestick.high) > 0
+    assert candlestick.low is not None and len(candlestick.low) > 0
+    assert candlestick.close is not None and len(candlestick.close) > 0
+    
+    # Candlestick should be the first trace for proper layering
+    assert fig.data[0].name == "TEST OHLC", "Candlestick should be first trace for visibility"
 
 
 def test_visualization_config_validates_sma_windows():
@@ -136,12 +160,13 @@ def test_load_price_data(mock_fetch_data):
     
     df = load_price_data(cfg)
     
-    # Verify fetch_data was called with correct parameters
+    # Verify fetch_data was called with correct parameters (including new force_refresh param)
     mock_fetch_data.assert_called_once_with(
         "TEST",
         period="1mo",
         interval="1d",
-        cache_path="/tmp/test_cache/TEST.csv"
+        cache_path="/tmp/test_cache/TEST.csv",
+        force_refresh=False,
     )
     
     # Verify data was filtered

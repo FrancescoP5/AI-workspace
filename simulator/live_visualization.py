@@ -23,6 +23,7 @@ from simulator.visualization import (
     build_interactive_figure,
     load_price_data,
 )
+from simulator.data.yfinance_loader import DEFAULT_MAX_CACHE_AGE_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +46,20 @@ class FigureCache:
 def _build_figure(
     cfg: VisualizationConfig,
     cache: FigureCache,
-    data_loader: Callable[[VisualizationConfig], pd.DataFrame],
+    data_loader: Callable[[VisualizationConfig, bool], pd.DataFrame],
     min_refresh_seconds: int,
+    force_refresh_data: bool = False,
 ) -> tuple[str, datetime, datetime, bool]:
     now = datetime.now(timezone.utc)
-    if cache.is_fresh(min_refresh_seconds):
+    if cache.is_fresh(min_refresh_seconds) and not force_refresh_data:
         # Return cached figure without re-querying the data source.
         assert cache.figure_json is not None
         assert cache.fetched_at is not None
         assert cache.data_timestamp is not None
         return cache.figure_json, cache.fetched_at, cache.data_timestamp, True
 
-    df = data_loader(cfg)
+    # In live mode, use force_refresh=True to bypass file cache staleness
+    df = data_loader(cfg, force_refresh_data)
     if df.empty or len(df) <= cfg.long:
         raise ValueError(
             f"Insufficient data loaded for ticker {cfg.ticker}: expected more than {cfg.long} data points, got {len(df)}."
@@ -115,9 +118,16 @@ def _build_live_page(
     .status strong {{ margin-right: 0.35rem; }}
     .error {{ color: #d62728; font-weight: 600; }}
     .muted {{ color: #6b7280; }}
+    .warning-banner {{ background: #fef3cd; border: 1px solid #ffc107; padding: 0.5rem 1rem; border-radius: 0.35rem; margin-bottom: 0.5rem; display: none; }}
+    .warning-banner.visible {{ display: block; }}
+    .warning-text {{ color: #856404; font-weight: 500; }}
+    .stale-indicator {{ color: #d62728; font-weight: 600; }}
   </style>
 </head>
 <body>
+  <div class="warning-banner" id="stale-warning">
+    <span class="warning-text">⚠️ Data may be delayed - last market data is more than 24 hours old. Market may be closed.</span>
+  </div>
   <h1>Live SMA crossover - {html.escape(cfg.ticker)}</h1>
   <div class=\"panel\">
     <label for=\"interval-select\">Refresh interval</label>
@@ -145,6 +155,7 @@ def _build_live_page(
     const loadingTag = document.getElementById('loading');
     const cacheTag = document.getElementById('from-cache');
     const errorText = document.getElementById('error-text');
+    const staleWarning = document.getElementById('stale-warning');
     const initialFigure = JSON.parse(document.getElementById('initial-figure').textContent);
 
     let timerId = null;
@@ -155,6 +166,10 @@ def _build_live_page(
 
     function setCacheTag(isCached) {{
       cacheTag.style.display = isCached ? 'inline-block' : 'none';
+    }}
+
+    function setStaleWarning(isStale) {{
+      staleWarning.classList.toggle('visible', isStale);
     }}
 
     async function fetchAndUpdate() {{
@@ -172,7 +187,9 @@ def _build_live_page(
         await Plotly.react('chart', fig.data, fig.layout);
         lastRefreshEl.textContent = new Date(payload.fetched_at).toLocaleTimeString();
         dataTimestampEl.textContent = payload.data_timestamp;
-        statusText.textContent = payload.stale ? 'Stale data (market closed or rate limited)' : 'Live';
+        const isStale = Boolean(payload.stale);
+        statusText.textContent = isStale ? 'Stale data (market closed or rate limited)' : 'Live';
+        setStaleWarning(isStale);
         setCacheTag(Boolean(payload.from_cache));
       }} catch (err) {{
         console.error(err);
@@ -239,17 +256,27 @@ def _build_live_page(
 def create_live_app(
     cfg: VisualizationConfig,
     *,
-    data_loader: Callable[[VisualizationConfig], pd.DataFrame] = load_price_data,
+    data_loader: Callable[[VisualizationConfig, bool], pd.DataFrame] = load_price_data,
     min_refresh_seconds: int = MIN_REFRESH_SECONDS,
+    force_refresh_data: bool = True,
 ) -> Flask:
+    """Create a Flask app for live visualization.
+    
+    Args:
+        cfg: Visualization configuration
+        data_loader: Function to load price data (cfg, force_refresh) -> DataFrame
+        min_refresh_seconds: Minimum seconds between API figure updates
+        force_refresh_data: If True, bypass file cache on each API call (default for live mode)
+    """
     cache = FigureCache()
     app = Flask(__name__)
 
     @app.get("/api/figure")
     def api_figure():
         try:
+            # In live mode, force_refresh_data=True bypasses stale file cache
             figure_json, fetched_at, data_timestamp, from_cache = _build_figure(
-                cfg, cache, data_loader, min_refresh_seconds
+                cfg, cache, data_loader, min_refresh_seconds, force_refresh_data
             )
             return jsonify(
                 {
@@ -280,8 +307,9 @@ def create_live_app(
 
     @app.get("/")
     def index() -> Response:
+        # For initial page load, also use force_refresh to ensure fresh data
         figure_json, fetched_at, data_timestamp, _ = _build_figure(
-            cfg, cache, data_loader, min_refresh_seconds
+            cfg, cache, data_loader, min_refresh_seconds, force_refresh_data
         )
         html_page = _build_live_page(
             cfg,
