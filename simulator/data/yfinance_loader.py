@@ -107,6 +107,7 @@ def fetch_data(ticker, period='2y', interval='1d', cache_path=None,
     should_use_cache = cache_path and os.path.exists(cache_path) and not force_refresh
     
     if should_use_cache:
+        assert cache_path is not None  # Guaranteed by should_use_cache condition
         # Cache may come from older runs with MultiIndex headers; try both formats.
         df = _read_csv_with_header(cache_path, header=0)
 

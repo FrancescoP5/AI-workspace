@@ -73,6 +73,7 @@ def _build_figure(
     cache.figure_json = figure_json
     cache.fetched_at = now
     cache.data_timestamp = data_timestamp
+    assert isinstance(figure_json, str)
     return figure_json, now, data_timestamp, False
 
 
